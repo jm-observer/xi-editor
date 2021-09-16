@@ -147,6 +147,7 @@ impl<T: Clone> SpansBuilder<T> {
 pub struct SpanIter<'a, T: 'a + Clone> {
     cursor: Cursor<'a, SpansInfo<T>>,
     ix: usize,
+    end: usize,
 }
 
 impl<T: Clone> Spans<T> {
@@ -289,7 +290,13 @@ impl<T: Clone> Spans<T> {
     // possible future: an iterator that takes an interval, so results are the same as
     // taking a subseq on the spans object. Would require specialized Cursor.
     pub fn iter(&self) -> SpanIter<T> {
-        SpanIter { cursor: Cursor::new(self, 0), ix: 0 }
+        SpanIter { cursor: Cursor::new(self, 0), ix: 0, end: self.len() }
+    }
+
+    pub fn iter_chunks<I: IntervalBounds>(&self, range: I) -> SpanIter<T> {
+        let Interval { start, end } = range.into_interval(self.len());
+
+        SpanIter { cursor: Cursor::new(self, start), ix: 0, end }
     }
 
     /// Applies a generic delta to `self`, inserting empty spans for any
@@ -338,6 +345,9 @@ impl<'a, T: Clone> Iterator for SpanIter<'a, T> {
     type Item = (Interval, &'a T);
 
     fn next(&mut self) -> Option<(Interval, &'a T)> {
+        if self.cursor.pos() >= self.end {
+            return None;
+        }
         if let Some((leaf, start_pos)) = self.cursor.get_leaf() {
             if leaf.spans.is_empty() {
                 return None;
