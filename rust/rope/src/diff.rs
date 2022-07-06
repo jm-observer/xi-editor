@@ -114,21 +114,27 @@ impl Diff<RopeInfo> for LineHashDiff {
         // we keep track of how far forward we extend it each time, to avoid
         // having a subsequent scan extend backwards over the same region.
         let mut prev_end = start_offset;
+        let mut prev_start = start_offset;
 
         for (targ_off, base_off) in longest_subseq {
             if targ_off <= prev_end {
                 continue;
             }
-            let (left_dist, mut right_dist) =
+            if base_off <= prev_start {
+                continue;
+            }
+            let (mut left_dist, mut right_dist) =
                 expand_match(base, target, base_off, targ_off, prev_end);
 
             // don't let last match expand past target_end
             right_dist = right_dist.min(target_end - targ_off);
+            left_dist = left_dist.min(base_off - prev_start);
 
             let targ_start = targ_off - left_dist;
             let base_start = base_off - left_dist;
             let len = left_dist + right_dist;
             prev_end = targ_start + len;
+            prev_start = base_start + len;
 
             builder.copy(base_start, targ_start, len);
         }
