@@ -293,7 +293,10 @@ pub fn compare_cursor_regex(
     } else {
         match lines.next() {
             Some(line) => text = line,
-            _ => return None,
+            _ => {
+                cursor.next_leaf();
+                return None;
+            }
         }
     }
 
