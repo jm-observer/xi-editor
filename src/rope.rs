@@ -475,17 +475,17 @@ impl Rope {
     ///
     /// This function will panic if `line > self.measure::<LinesMetric>() + 1`.
     /// Callers are expected to validate their input.
-    pub fn offset_of_line(&self, line: usize) -> usize {
+    pub fn offset_of_line(&self, line: usize) -> anyhow::Result<usize> {
         let max_line = self.measure::<LinesMetric>() + 1;
-        match line.cmp(&max_line) {
+        Ok(match line.cmp(&max_line) {
             Ordering::Greater => {
-                panic!("line number {} beyond last line {}", line, max_line);
+                bail!("line number {} beyond last line {}", line, max_line);
             }
             Ordering::Equal => {
-                return self.len();
+                self.len()
             }
             Ordering::Less => self.count_base_units::<LinesMetric>(line),
-        }
+        })
     }
 
     /// Returns an iterator over chunks of the rope.
