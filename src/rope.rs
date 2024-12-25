@@ -271,7 +271,7 @@ impl Metric<RopeInfo> for LinesMetric {
         true
     }
 }
-
+#[allow(dead_code)]
 #[derive(Clone, Copy)]
 pub struct Utf16CodeUnitsMetric(usize);
 
