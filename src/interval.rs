@@ -27,6 +27,7 @@ use std::ops::{Range, RangeFrom, RangeFull, RangeInclusive, RangeTo, RangeToIncl
 /// It is an invariant that `start <= end`. An interval where `end < start` is
 /// considered empty.
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
 pub struct Interval {
     pub start: usize,
     pub end: usize,
