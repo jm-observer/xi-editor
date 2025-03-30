@@ -17,6 +17,7 @@
 //! storing different annotations.
 
 use std::fmt;
+use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
 
@@ -35,10 +36,28 @@ pub struct Span<T: Clone> {
     data: T,
 }
 
+impl<T: Clone + Debug> Debug for Span<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("Span")
+            .field("iv", &self.iv)
+            .field("data", &self.data)
+            .finish()
+    }
+}
+
 #[derive(Clone)]
 pub struct SpansLeaf<T: Clone> {
     len: usize, // measured in base units
     spans: Vec<Span<T>>,
+}
+
+impl<T: Clone + Debug> Debug for SpansLeaf<T> {
+    fn fmt(&self, f: &mut Formatter<'_>) -> fmt::Result {
+        f.debug_struct("SpansLeaf")
+            .field("len", &self.len)
+            .field("spans", &self.spans)
+            .finish()
+    }
 }
 
 // It would be preferable to derive Default.
@@ -46,11 +65,14 @@ pub struct SpansLeaf<T: Clone> {
 // See: https://github.com/rust-lang/rust/issues/26925
 impl<T: Clone> Default for SpansLeaf<T> {
     fn default() -> Self {
-        SpansLeaf { len: 0, spans: vec![] }
+        SpansLeaf {
+            len: 0,
+            spans: vec![],
+        }
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct SpansInfo<T> {
     n_spans: usize,
     iv: Interval,
@@ -69,10 +91,17 @@ impl<T: Clone> Leaf for SpansLeaf<T> {
     fn push_maybe_split(&mut self, other: &Self, iv: Interval) -> Option<Self> {
         let iv_start = iv.start();
         for span in &other.spans {
-            let span_iv = span.iv.intersect(iv).translate_neg(iv_start).translate(self.len);
+            let span_iv = span
+                .iv
+                .intersect(iv)
+                .translate_neg(iv_start)
+                .translate(self.len);
 
             if !span_iv.is_empty() {
-                self.spans.push(Span { iv: span_iv, data: span.data.clone() });
+                self.spans.push(Span {
+                    iv: span_iv,
+                    data: span.data.clone(),
+                });
             }
         }
         self.len += iv.size();
@@ -88,7 +117,10 @@ impl<T: Clone> Leaf for SpansLeaf<T> {
             }
             let new_len = self.len - splitpoint_units;
             self.len = splitpoint_units;
-            Some(SpansLeaf { len: new_len, spans: new })
+            Some(SpansLeaf {
+                len: new_len,
+                spans: new,
+            })
         }
     }
 }
@@ -106,7 +138,11 @@ impl<T: Clone> NodeInfo for SpansInfo<T> {
         for span in &l.spans {
             iv = iv.union(span.iv);
         }
-        SpansInfo { n_spans: l.spans.len(), iv, phantom: PhantomData }
+        SpansInfo {
+            n_spans: l.spans.len(),
+            iv,
+            phantom: PhantomData,
+        }
     }
 }
 
@@ -119,7 +155,12 @@ pub struct SpansBuilder<T: Clone> {
 
 impl<T: Clone> SpansBuilder<T> {
     pub fn new(total_len: usize) -> Self {
-        SpansBuilder { b: TreeBuilder::new(), leaf: SpansLeaf::default(), len: 0, total_len }
+        SpansBuilder {
+            b: TreeBuilder::new(),
+            leaf: SpansLeaf::default(),
+            len: 0,
+            total_len,
+        }
     }
 
     // Precondition: spans must be added in nondecreasing start order.
@@ -132,7 +173,10 @@ impl<T: Clone> SpansBuilder<T> {
             self.len = iv.start();
             self.b.push(Node::from_leaf(leaf));
         }
-        self.leaf.spans.push(Span { iv: iv.translate_neg(self.len), data })
+        self.leaf.spans.push(Span {
+            iv: iv.translate_neg(self.len),
+            data,
+        })
     }
 
     // Would make slightly more implementation sense to take total_len as an argument
@@ -214,7 +258,11 @@ impl<T: Clone> Spans<T> {
                 break;
             } else if next_red.is_none() != next_blue.is_none() {
                 // one side is exhausted; append remaining items from other side.
-                let iter = if next_red.is_some() { iter_red } else { iter_blue };
+                let iter = if next_red.is_some() {
+                    iter_red
+                } else {
+                    iter_blue
+                };
                 // add this item
                 let (iv, val) = next_red.or(next_blue).unwrap();
                 sb.add_span(iv, f(val, None));
@@ -290,13 +338,21 @@ impl<T: Clone> Spans<T> {
     // possible future: an iterator that takes an interval, so results are the same as
     // taking a subseq on the spans object. Would require specialized Cursor.
     pub fn iter(&self) -> SpanIter<T> {
-        SpanIter { cursor: Cursor::new(self, 0), ix: 0, end: self.len() }
+        SpanIter {
+            cursor: Cursor::new(self, 0),
+            ix: 0,
+            end: self.len(),
+        }
     }
 
     pub fn iter_chunks<I: IntervalBounds>(&self, range: I) -> SpanIter<T> {
         let Interval { start, end } = range.into_interval(self.len());
 
-        SpanIter { cursor: Cursor::new(self, start), ix: 0, end }
+        SpanIter {
+            cursor: Cursor::new(self, start),
+            ix: 0,
+            end,
+        }
     }
 
     /// Applies a generic delta to `self`, inserting empty spans for any
@@ -335,8 +391,10 @@ impl<T: Clone> Spans<T> {
 
 impl<T: Clone + fmt::Debug> fmt::Debug for Spans<T> {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        let strs =
-            self.iter().map(|(iv, val)| format!("{}: {:?}", iv, val)).collect::<Vec<String>>();
+        let strs = self
+            .iter()
+            .map(|(iv, val)| format!("{}: {:?}", iv, val))
+            .collect::<Vec<String>>();
         write!(f, "len: {}\nspans:\n\t{}", self.len(), &strs.join("\n\t"))
     }
 }

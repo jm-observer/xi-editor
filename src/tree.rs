@@ -199,7 +199,12 @@ impl<N: NodeInfo> Node<N> {
     pub fn from_leaf(l: N::L) -> Node<N> {
         let len = l.len();
         let info = N::compute_info(&l);
-        Node(Arc::new(NodeBody { height: 0, len, info, val: NodeVal::Leaf(l) }))
+        Node(Arc::new(NodeBody {
+            height: 0,
+            len,
+            info,
+            val: NodeVal::Leaf(l),
+        }))
     }
 
     /// Create a node from a vec of nodes.
@@ -221,7 +226,12 @@ impl<N: NodeInfo> Node<N> {
             len += child.0.len;
             info.accumulate(&child.0.info);
         }
-        Node(Arc::new(NodeBody { height, len, info, val: NodeVal::Internal(nodes) }))
+        Node(Arc::new(NodeBody {
+            height,
+            len,
+            info,
+            val: NodeVal::Internal(nodes),
+        }))
     }
 
     pub fn len(&self) -> usize {
@@ -398,7 +408,9 @@ impl<N: NodeInfo> Node<N> {
                     }
                     let child_iv = child.interval();
                     // easier just to use signed ints?
-                    let rec_iv = iv.intersect(child_iv.translate(offset)).translate_neg(offset);
+                    let rec_iv = iv
+                        .intersect(child_iv.translate(offset))
+                        .translate_neg(offset);
                     child.push_subseq(b, rec_iv);
                     offset += child.len();
                 }
@@ -453,6 +465,40 @@ impl<N: NodeInfo> Node<N> {
         let l = node.get_leaf();
         let base = M1::to_base_units(l, m1);
         m2 + M2::from_base_units(l, base)
+    }
+}
+
+use std::fmt::Debug;
+
+impl<N: NodeInfo> Node<N>
+where
+    N: Debug,
+    N::L: Debug,
+{
+    pub fn print_tree(&self, indent: usize) {
+        let node = &*self.0; // 解引用 Arc<NodeBody<N>>
+
+        let indent_str = "  ".repeat(indent);
+        let node_type = match &node.val {
+            NodeVal::Leaf(_) => "Leaf",
+            NodeVal::Internal(_) => "Internal",
+        };
+
+        println!(
+            "{}[H={}] {} len={} info={:?}",
+            indent_str, node.height, node_type, node.len, node.info
+        );
+
+        match &node.val {
+            NodeVal::Internal(children) => {
+                for child in children {
+                    child.print_tree(indent + 1);
+                }
+            }
+            NodeVal::Leaf(leaf) => {
+                println!("{}  └─ Leaf content: {:?}", indent_str, leaf);
+            }
+        }
     }
 }
 
@@ -839,7 +885,10 @@ impl<'a, N: NodeInfo> Cursor<'a, N> {
     /// ```
     /// [`Metric`]: struct.Metric.html
     pub fn iter<'c, M: Metric<N>>(&'c mut self) -> CursorIter<'c, 'a, N, M> {
-        CursorIter { cursor: self, _metric: PhantomData }
+        CursorIter {
+            cursor: self,
+            _metric: PhantomData,
+        }
     }
 
     /// Tries to find the last boundary in the leaf the cursor is currently in.
@@ -1100,7 +1149,9 @@ mod test {
         let mut cursor = Cursor::new(&text, 0);
         let mut prev_offset = cursor.pos();
         for i in 1..(n + 1) as usize {
-            let offset = cursor.next::<LinesMetric>().expect("arrived at the end too soon");
+            let offset = cursor
+                .next::<LinesMetric>()
+                .expect("arrived at the end too soon");
             assert_eq!(offset - prev_offset, i);
             prev_offset = offset;
         }
@@ -1151,7 +1202,10 @@ mod test {
             let mut c = Cursor::new(&r, i);
             let it = c.next::<LinesMetric>();
             let pos = c.pos();
-            assert!(s.as_bytes()[i..pos - 1].iter().all(|c| *c != b'\n'), "missed linebreak");
+            assert!(
+                s.as_bytes()[i..pos - 1].iter().all(|c| *c != b'\n'),
+                "missed linebreak"
+            );
             if pos < s.len() {
                 assert!(it.is_some(), "must be Some(_)");
                 assert!(s.as_bytes()[pos - 1] == b'\n', "not a linebreak");
