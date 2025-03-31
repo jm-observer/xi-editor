@@ -580,14 +580,26 @@ impl<'a> Iterator for ChunkIter<'a> {
         if self.cursor.pos() >= self.end {
             return None;
         }
+
         let (leaf, start_pos) = self.cursor.get_leaf().unwrap();
         let len = min(self.end - self.cursor.pos(), leaf.len() - start_pos);
-        self.cursor.next_leaf();
-        if leaf.get(start_pos..start_pos + len).is_none() {
-            println!("{} {}..{}", leaf, start_pos, start_pos + len);
+        let mut end_pos = start_pos + len;
+
+        // 保证不切断字符
+        while end_pos > start_pos && !leaf.is_char_boundary(end_pos) {
+            end_pos -= 1;
         }
-        Some(&leaf[start_pos..start_pos + len])
+
+        self.cursor.next_leaf();
+
+        if end_pos == start_pos {
+            // 当前 leaf 无可用字符，跳过
+            return self.next();
+        }
+
+        Some(&leaf[start_pos..end_pos])
     }
+
 }
 
 impl TreeBuilder<RopeInfo> {
