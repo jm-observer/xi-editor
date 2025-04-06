@@ -20,10 +20,10 @@ use std::fmt;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 use std::mem;
-
+use crate::cursor::Cursor;
 use crate::delta::{Delta, DeltaElement, Transformer};
 use crate::interval::{Interval, IntervalBounds};
-use crate::tree::{Cursor, Leaf, Node, NodeInfo, TreeBuilder};
+use crate::tree::{Leaf, Node, NodeInfo, TreeBuilder};
 
 const MIN_LEAF: usize = 32;
 const MAX_LEAF: usize = 64;
@@ -339,7 +339,7 @@ impl<T: Clone> Spans<T> {
     // taking a subseq on the spans object. Would require specialized Cursor.
     pub fn iter(&self) -> SpanIter<T> {
         SpanIter {
-            cursor: Cursor::new(self, 0),
+            cursor: Cursor::new_unsafe(self, 0),
             ix: 0,
             end: self.len(),
         }
@@ -349,7 +349,7 @@ impl<T: Clone> Spans<T> {
         let Interval { start, end } = range.into_interval(self.len());
 
         SpanIter {
-            cursor: Cursor::new(self, start),
+            cursor: Cursor::new_unsafe(self, start),
             ix: 0,
             end,
         }

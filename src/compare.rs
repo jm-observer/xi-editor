@@ -13,8 +13,8 @@
 // limitations under the License.
 
 //! Fast comparison of rope regions, principally for diffing.
+use crate::cursor::Cursor;
 use crate::rope::{BaseMetric, Rope, RopeInfo};
-use crate::tree::Cursor;
 
 #[allow(dead_code)]
 const SSE_STRIDE: usize = 16;
@@ -182,7 +182,10 @@ pub fn ne_idx_fallback(one: &[u8], two: &[u8]) -> Option<usize> {
 #[allow(dead_code)]
 #[doc(hidden)]
 pub fn ne_idx_rev_fallback(one: &[u8], two: &[u8]) -> Option<usize> {
-    one.iter().rev().zip(two.iter().rev()).position(|(a, b)| a != b)
+    one.iter()
+        .rev()
+        .zip(two.iter().rev())
+        .position(|(a, b)| a != b)
 }
 
 /// Utility for efficiently comparing two ropes.
@@ -197,8 +200,8 @@ pub struct RopeScanner<'a> {
 impl<'a> RopeScanner<'a> {
     pub fn new(base: &'a Rope, target: &'a Rope) -> Self {
         RopeScanner {
-            base: Cursor::new(base, 0),
-            target: Cursor::new(target, 0),
+            base: Cursor::new_unsafe(base, 0),
+            target: Cursor::new_unsafe(target, 0),
             base_chunk: "",
             target_chunk: "",
             scanned: 0,
@@ -228,8 +231,8 @@ impl<'a> RopeScanner<'a> {
         T: Into<Option<usize>>,
     {
         let stop = stop.into().unwrap_or(usize::MAX);
-        self.base.set(base_off);
-        self.target.set(targ_off);
+        self.base.set_unsafe(base_off);
+        self.target.set_unsafe(targ_off);
         self.scanned = 0;
 
         let (base_leaf, base_leaf_off) = self.base.get_leaf().unwrap();
@@ -248,7 +251,11 @@ impl<'a> RopeScanner<'a> {
                 ne_idx_rev(self.base_chunk.as_bytes(), self.target_chunk.as_bytes())
             {
                 // find nearest codepoint boundary
-                while idx > 1 && !self.base_chunk.is_char_boundary(self.base_chunk.len() - idx) {
+                while idx > 1
+                    && !self
+                        .base_chunk
+                        .is_char_boundary(self.base_chunk.len() - idx)
+                {
                     idx -= 1;
                 }
                 return stop.min(self.scanned + idx);
@@ -295,8 +302,8 @@ impl<'a> RopeScanner<'a> {
         T: Into<Option<usize>>,
     {
         let stop = stop.into().unwrap_or(usize::MAX);
-        self.base.set(base_off);
-        self.target.set(targ_off);
+        self.base.set_unsafe(base_off);
+        self.target.set_unsafe(targ_off);
         self.scanned = 0;
 
         let (base_leaf, base_leaf_off) = self.base.get_leaf().unwrap();
@@ -535,7 +542,10 @@ mod tests {
         let chunk4 = Rope::from("aaaaaabaaaaaaaaa");
         {
             let mut scanner = RopeScanner::new(&rope, &chunk1);
-            assert_eq!(scanner.find_ne_char_back(rope.len(), chunk1.len(), None), 16);
+            assert_eq!(
+                scanner.find_ne_char_back(rope.len(), chunk1.len(), None),
+                16
+            );
         }
 
         {
@@ -562,7 +572,10 @@ mod tests {
 
         {
             let mut scanner = RopeScanner::new(&rope, &chunk1);
-            assert_eq!(scanner.find_ne_char_back(rope.len(), chunk1.len(), None), 13);
+            assert_eq!(
+                scanner.find_ne_char_back(rope.len(), chunk1.len(), None),
+                13
+            );
         }
 
         {

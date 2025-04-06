@@ -27,8 +27,9 @@ use std::string::ParseError;
 
 use crate::delta::{Delta, DeltaElement};
 use crate::interval::{Interval, IntervalBounds};
-use crate::tree::{Cursor, DefaultMetric, Leaf, Metric, Node, NodeInfo, TreeBuilder};
+use crate::tree::{DefaultMetric, Leaf, Metric, Node, NodeInfo, TreeBuilder};
 
+use crate::cursor::Cursor;
 use memchr::{memchr, memrchr};
 use unicode_segmentation::{GraphemeCursor, GraphemeIncomplete};
 
@@ -407,19 +408,19 @@ impl Rope {
 
     /// Determine whether `offset` lies on a codepoint boundary.
     pub fn is_codepoint_boundary(&self, offset: usize) -> bool {
-        let mut cursor = Cursor::new(self, offset);
+        let mut cursor = Cursor::new_unsafe(self, offset);
         cursor.is_boundary::<BaseMetric>()
     }
 
     /// Return the offset of the codepoint before `offset`.
     pub fn prev_codepoint_offset(&self, offset: usize) -> Option<usize> {
-        let mut cursor = Cursor::new(self, offset);
+        let mut cursor = Cursor::new_unsafe(self, offset);
         cursor.prev::<BaseMetric>()
     }
 
     /// Return the offset of the codepoint after `offset`.
     pub fn next_codepoint_offset(&self, offset: usize) -> Option<usize> {
-        let mut cursor = Cursor::new(self, offset);
+        let mut cursor = Cursor::new_unsafe(self, offset);
         cursor.next::<BaseMetric>()
     }
 
@@ -444,12 +445,12 @@ impl Rope {
     }
 
     pub fn prev_grapheme_offset(&self, offset: usize) -> Option<usize> {
-        let mut cursor = Cursor::new(self, offset);
+        let mut cursor = Cursor::new_unsafe(self, offset);
         cursor.prev_grapheme()
     }
 
     pub fn next_grapheme_offset(&self, offset: usize) -> Option<usize> {
-        let mut cursor = Cursor::new(self, offset);
+        let mut cursor = Cursor::new_unsafe(self, offset);
         cursor.next_grapheme()
     }
 
@@ -507,7 +508,7 @@ impl Rope {
         let Interval { start, end } = range.into_interval(self.len());
 
         ChunkIter {
-            cursor: Cursor::new(self, start),
+            cursor: Cursor::new_unsafe(self, start),
             end,
         }
     }
@@ -542,7 +543,7 @@ impl Rope {
 
     // callers should be encouraged to use cursor instead
     pub fn byte_at(&self, offset: usize) -> u8 {
-        let cursor = Cursor::new(self, offset);
+        let cursor = Cursor::new_unsafe(self, offset);
         let (leaf, pos) = cursor.get_leaf().unwrap();
         leaf.as_bytes()[pos]
     }
@@ -589,7 +590,7 @@ impl<'a> Iterator for ChunkIter<'a> {
             while sp < leaf.len() && !leaf.is_char_boundary(sp) {
                 sp += 1;
             }
-            self.cursor.set(self.cursor.pos() + (sp - start_pos));
+            self.cursor.set_unsafe(self.cursor.pos() + (sp - start_pos));
             return self.next(); // 重新执行一次
         }
 
@@ -700,9 +701,9 @@ impl<'a> Cursor<'a, RopeInfo> {
 
     /// Get next codepoint after cursor position, and advance cursor.
     pub fn next_codepoint(&mut self) -> Option<char> {
-        let (l, offset) = self.get_leaf()?;        // 获取当前字符
+        let (l, offset) = self.get_leaf()?; // 获取当前字符
         let result = l.get(offset..)?.chars().next(); // 提前读取字符
-        self.next::<BaseMetric>();                 // 然后移动 cursor
+        self.next::<BaseMetric>(); // 然后移动 cursor
         result
         //
         // if let Some((l, offset)) = self.get_leaf() {
@@ -740,7 +741,7 @@ impl<'a> Cursor<'a, RopeInfo> {
                 let (pl, poffset) = self.prev_leaf()?;
                 c.provide_context(pl, self.pos() - poffset);
             } else if incomp == GraphemeIncomplete::NextChunk {
-                self.set(pos);
+                self.set_unsafe(pos);
                 let (nl, noffset) = self.next_leaf()?;
                 l = nl;
                 leaf_offset = self.pos() - noffset;
@@ -768,7 +769,7 @@ impl<'a> Cursor<'a, RopeInfo> {
                 let (pl, poffset) = self.prev_leaf()?;
                 c.provide_context(pl, self.pos() - poffset);
             } else if incomp == GraphemeIncomplete::PrevChunk {
-                self.set(pos);
+                self.set_unsafe(pos);
                 let (pl, poffset) = self.prev_leaf()?;
                 l = pl;
                 leaf_offset = self.pos() - poffset;
@@ -1021,7 +1022,7 @@ mod tests {
     #[test]
     fn peek_next_codepoint() {
         let inp = Rope::from("$¢€£💶");
-        let mut cursor = Cursor::new(&inp, 0);
+        let mut cursor = Cursor::new_unsafe(&inp, 0);
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));
         assert_eq!(cursor.peek_next_codepoint(), Some('$'));
         assert_eq!(cursor.next_codepoint(), Some('$'));

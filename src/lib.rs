@@ -53,8 +53,10 @@ pub mod spans;
 #[cfg(test)]
 mod test_helpers;
 pub mod tree;
+mod cursor;
 
+pub use cursor::Cursor;
 pub use crate::delta::{Builder as DeltaBuilder, Delta, DeltaElement, Transformer};
 pub use crate::interval::Interval;
 pub use crate::rope::{LinesMetric, Rope, RopeDelta, RopeInfo};
-pub use crate::tree::{Cursor, Metric};
+pub use crate::tree::Metric;

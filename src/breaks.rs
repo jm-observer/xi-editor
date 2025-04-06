@@ -74,7 +74,10 @@ impl Leaf for BreaksLeaf {
 
             let new_len = self.len - splitpoint_units;
             self.len = splitpoint_units;
-            Some(BreaksLeaf { len: new_len, data: new })
+            Some(BreaksLeaf {
+                len: new_len,
+                data: new,
+            })
         }
     }
 }
@@ -214,7 +217,10 @@ pub struct BreakBuilder {
 
 impl Default for BreakBuilder {
     fn default() -> BreakBuilder {
-        BreakBuilder { b: TreeBuilder::new(), leaf: BreaksLeaf::default() }
+        BreakBuilder {
+            b: TreeBuilder::new(),
+            leaf: BreaksLeaf::default(),
+        }
     }
 }
 
@@ -245,8 +251,9 @@ impl BreakBuilder {
 #[cfg(test)]
 mod tests {
     use crate::breaks::{BreakBuilder, BreaksInfo, BreaksLeaf, BreaksMetric};
+    use crate::cursor::Cursor;
     use crate::interval::Interval;
-    use crate::tree::{Cursor, Node};
+    use crate::tree::Node;
 
     fn gen(n: usize) -> Node<BreaksInfo> {
         let mut node = Node::default();
@@ -278,18 +285,21 @@ mod tests {
 
     #[test]
     fn one() {
-        let testleaf = BreaksLeaf { len: 10, data: vec![10] };
+        let testleaf = BreaksLeaf {
+            len: 10,
+            data: vec![10],
+        };
         let testnode = Node::<BreaksInfo>::from_leaf(testleaf.clone());
         assert_eq!(10, testnode.len());
-        let mut c = Cursor::new(&testnode, 0);
+        let mut c = Cursor::new_unsafe(&testnode, 0);
         assert_eq!(c.get_leaf().unwrap().0, &testleaf);
         assert_eq!(10, c.next::<BreaksMetric>().unwrap());
         assert!(c.next::<BreaksMetric>().is_none());
-        c.set(0);
+        c.set_unsafe(0);
         assert!(!c.is_boundary::<BreaksMetric>());
-        c.set(1);
+        c.set_unsafe(1);
         assert!(!c.is_boundary::<BreaksMetric>());
-        c.set(10);
+        c.set_unsafe(10);
         assert!(c.is_boundary::<BreaksMetric>());
         assert!(c.prev::<BreaksMetric>().is_none());
     }
@@ -300,7 +310,7 @@ mod tests {
         let right = gen(1);
         let node = Node::concat(left.clone(), right);
         assert_eq!(node.len(), 20);
-        let mut c = Cursor::new(&node, 0);
+        let mut c = Cursor::new_unsafe(&node, 0);
         assert_eq!(10, c.next::<BreaksMetric>().unwrap());
         assert_eq!(20, c.next::<BreaksMetric>().unwrap());
         assert!(c.next::<BreaksMetric>().is_none());
