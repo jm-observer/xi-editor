@@ -582,6 +582,17 @@ impl<'a> Iterator for ChunkIter<'a> {
         }
 
         let (leaf, start_pos) = self.cursor.get_leaf().unwrap();
+
+        if !leaf.is_char_boundary(start_pos) {
+            // 找到下一个合法边界
+            let mut sp = start_pos;
+            while sp < leaf.len() && !leaf.is_char_boundary(sp) {
+                sp += 1;
+            }
+            self.cursor.set(self.cursor.pos() + (sp - start_pos));
+            return self.next(); // 重新执行一次
+        }
+
         let len = min(self.end - self.cursor.pos(), leaf.len() - start_pos);
         let mut end_pos = start_pos + len;
 
@@ -599,7 +610,6 @@ impl<'a> Iterator for ChunkIter<'a> {
 
         Some(&leaf[start_pos..end_pos])
     }
-
 }
 
 impl TreeBuilder<RopeInfo> {
@@ -690,18 +700,29 @@ impl<'a> Cursor<'a, RopeInfo> {
 
     /// Get next codepoint after cursor position, and advance cursor.
     pub fn next_codepoint(&mut self) -> Option<char> {
-        if let Some((l, offset)) = self.get_leaf() {
-            self.next::<BaseMetric>();
-            l[offset..].chars().next()
-        } else {
-            None
-        }
+        let (l, offset) = self.get_leaf()?;        // 获取当前字符
+        let result = l.get(offset..)?.chars().next(); // 提前读取字符
+        self.next::<BaseMetric>();                 // 然后移动 cursor
+        result
+        //
+        // if let Some((l, offset)) = self.get_leaf() {
+        //     self.next::<BaseMetric>();
+        //     l[offset..].chars().next()
+        // } else {
+        //     None
+        // }
     }
 
     /// Get the next codepoint after the cursor position, without advancing
     /// the cursor.
     pub fn peek_next_codepoint(&self) -> Option<char> {
-        self.get_leaf().and_then(|(l, off)| l[off..].chars().next())
+        let mut cur = self.clone(); // clone 不移动原始 cursor
+                                    // 如果当前位置不是字符边界，尝试前进
+        if !cur.is_boundary::<BaseMetric>() {
+            cur.next::<BaseMetric>()?;
+        }
+        let (leaf, offset) = cur.get_leaf()?;
+        leaf[offset..].chars().next()
     }
 
     pub fn next_grapheme(&mut self) -> Option<usize> {

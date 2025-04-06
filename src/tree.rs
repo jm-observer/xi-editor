@@ -673,6 +673,7 @@ const CURSOR_CACHE_SIZE: usize = 4;
 /// or [`next`](#method.next) fails to find a boundary.
 ///
 /// [`Metric`]: struct.Metric.html
+#[derive(Clone)]
 pub struct Cursor<'a, N: 'a + NodeInfo> {
     /// The tree being traversed by this cursor.
     root: &'a Node<N>,
